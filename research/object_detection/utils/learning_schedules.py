@@ -274,3 +274,60 @@ def manual_stepping(global_step, boundaries, rates, warmup=False):
                          name='learning_rate')
 
   return _learning_rate_return_value(eager_decay_rate)
+
+def exponential_oscillating_with_warmup(global_step,
+                             learning_rate_base,
+                             warmup_learning_rate,
+                             warmup_steps,
+                             hold_base_rate_steps,
+                             decay_steps,
+                             decay_factor,
+                             osc_amplitude,
+                             osc_period):
+  """
+  Exponentially decreasing learning rate with an oscillation. Custom.
+
+  Args:
+    global_step: int64 (scalar) tensor representing global step.
+    learning_rate_base: base learning rate.
+    warmup_learning_rate: initial learning rate for warm up.
+    warmup_steps: number of warmup steps.
+    hold_base_rate_steps: Optional number of steps to hold base learning rate
+      before decaying.
+    decay_steps: steps to take between decaying the learning rate.
+    decay_factor: multiplicative factor by which to decay learning rate.
+    osc_amplitude: amplitude of the oscillation.
+    osc_period: period of the sinusoidal oscillation (steps between high points)
+
+
+  Returns:
+    If executing eagerly:
+      returns a no-arg callable that outputs the (scalar)
+      float tensor learning rate given the current value of global_step.
+    If in a graph:
+      immediately returns a (scalar) float tensor representing learning rate.
+  
+  Raises:
+    ValueError: if warmup_learning_rate is larger than learning_rate_base
+  """
+  def eager_decay_rate():
+    """Callable to compute the learning rate."""
+    adj_step = tf.cast(global_step, tf.float32) - warmup_steps - hold_base_rate_steps
+    exp_factor = tf.math.pow(decay_factor, adj_step / float(decay_steps))
+    learning_rate = exp_factor * (learning_rate_base + osc_amplitude * tf.math.sin(2.0 * np.pi / osc_period * adj_step))
+    if hold_base_rate_steps > 0:
+      learning_rate = tf.where(
+          global_step > warmup_steps + hold_base_rate_steps,
+          learning_rate, learning_rate_base)
+    if warmup_steps > 0:
+      if learning_rate_base < warmup_learning_rate:
+        raise ValueError('learning_rate_base must be larger or equal to '
+                         'warmup_learning_rate.')
+      slope = (learning_rate_base - warmup_learning_rate) / warmup_steps
+      warmup_rate = slope * tf.cast(global_step,
+                                    tf.float32) + warmup_learning_rate
+      learning_rate = tf.where(global_step < warmup_steps, warmup_rate,
+                               learning_rate)
+    return tf.maximum(learning_rate, 0.0, name='learning_rate')
+
+  return _learning_rate_return_value(eager_decay_rate)

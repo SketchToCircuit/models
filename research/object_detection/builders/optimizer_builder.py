@@ -206,6 +206,19 @@ def _create_learning_rate(learning_rate_config, global_step=None):
         config.warmup_learning_rate,
         config.warmup_steps,
         config.hold_base_rate_steps)
+  
+  if learning_rate_type == 'exponential_oscillating_learning_rate':
+    config = learning_rate_config.exponential_oscillating_learning_rate
+    learning_rate = learning_schedules.exponential_oscillating_with_warmup(
+        global_step,
+        config.learning_rate_base,
+        config.warmup_learning_rate,
+        config.warmup_steps,
+        config.hold_base_rate_steps,
+        config.decay_steps,
+        config.decay_factor,
+        config.osc_amplitude,
+        config.osc_period)
 
   if learning_rate is None:
     raise ValueError('Learning_rate %s not supported.' % learning_rate_type)

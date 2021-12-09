@@ -50,6 +50,7 @@ message LearningRate {
     ExponentialDecayLearningRate exponential_decay_learning_rate = 2;
     ManualStepLearningRate manual_step_learning_rate = 3;
     CosineDecayLearningRate cosine_decay_learning_rate = 4;
+    ExponentialOscillatingLearningRate exponential_oscillating_learning_rate = 5;
   }
 }
 
@@ -93,4 +94,19 @@ message CosineDecayLearningRate {
   optional float warmup_learning_rate = 3 [default = 0.0002];
   optional uint32 warmup_steps = 4 [default = 10000];
   optional uint32 hold_base_rate_steps = 5 [default = 0];
+}
+
+// Oscillating cosine learning rate with warmup and exponentially decreasing
+// learning rate after warmup/holding (step is corrected for warmup period):
+// exp_factor = decay_factor ^ (step / decay_steps)
+// lr = exp_factor * (learning_rate_base + osc_amplitude * sin(2*pi / osc_period * step))
+message ExponentialOscillatingLearningRate {
+  optional float learning_rate_base = 1 [default = 0.03];
+  optional float warmup_learning_rate = 2 [default = 0.01];
+  optional uint32 warmup_steps = 3 [default = 1000];
+  optional uint32 hold_base_rate_steps = 4 [default = 0];
+  optional uint32 decay_steps = 5 [default = 1000];
+  optional float decay_factor = 6 [default = 0.95];
+  optional float osc_amplitude = 7 [default = 0.01];
+  optional uint32 osc_period = 8 [default = 10000];
 }
