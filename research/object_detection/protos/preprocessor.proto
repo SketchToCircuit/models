@@ -47,6 +47,7 @@ message PreprocessingStep {
     RandomSquareCropByScale random_square_crop_by_scale = 37;
     RandomScaleCropAndPadToSquare random_scale_crop_and_pad_to_square = 38;
     AdjustGamma adjust_gamma = 39;
+    CustomAugmentation custom_augmentation = 40;
   }
 }
 
@@ -623,3 +624,4 @@ message AdjustGamma {
   optional float gain = 2 [default = 1.0];
 }
 
+message CustomAugmentation {}

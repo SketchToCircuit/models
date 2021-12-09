@@ -88,7 +88,7 @@ from object_detection.utils import autoaugment_utils
 from object_detection.utils import ops
 from object_detection.utils import patch_ops
 from object_detection.utils import shape_utils
-
+from object_detection.utils import custom_augmentation as custaug
 
 def _apply_with_random_selector(x,
                                 func,
@@ -1098,6 +1098,10 @@ def adjust_gamma(image, gamma=1.0, gain=1.0):
     image = _augment_only_rgb_channels(image, _adjust_gamma)
     return image
 
+
+def custom_augmentation(image, boxes):
+  with tf.name_scope('CustomAugmentation', values=[image, boxes]):
+    return custaug.augment(image, boxes)
 
 def random_adjust_brightness(image,
                              max_delta=0.2,
@@ -4662,6 +4666,7 @@ def get_default_func_arg_map(include_label_weights=True,
            groundtruth_label_weights, groundtruth_instance_masks,
            groundtruth_keypoints, groundtruth_label_confidences),
       adjust_gamma: (fields.InputDataFields.image,),
+      custom_augmentation: (fields.InputDataFields.image, fields.InputDataFields.groundtruth_boxes)
   }
 
   return prep_func_arg_map

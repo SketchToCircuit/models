@@ -109,6 +109,8 @@ PREPROCESSING_FUNCTION_MAP = {
         preprocessor.convert_class_logits_to_softmax,
     'adjust_gamma':
         preprocessor.adjust_gamma,
+    'custom_augmentation':
+        preprocessor.custom_augmentation,
 }
 
 
