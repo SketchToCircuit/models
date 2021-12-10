@@ -283,7 +283,8 @@ def exponential_oscillating_with_warmup(global_step,
                              decay_steps,
                              decay_factor,
                              osc_amplitude,
-                             osc_period):
+                             osc_period,
+                             min_rate):
   """
   Exponentially decreasing learning rate with an oscillation. Custom.
 
@@ -298,6 +299,7 @@ def exponential_oscillating_with_warmup(global_step,
     decay_factor: multiplicative factor by which to decay learning rate.
     osc_amplitude: amplitude of the oscillation.
     osc_period: period of the sinusoidal oscillation (steps between high points)
+    min_rate: lower bound for learning rate
 
 
   Returns:
@@ -328,6 +330,6 @@ def exponential_oscillating_with_warmup(global_step,
                                     tf.float32) + warmup_learning_rate
       learning_rate = tf.where(global_step < warmup_steps, warmup_rate,
                                learning_rate)
-    return tf.maximum(learning_rate, 0.0, name='learning_rate')
+    return tf.maximum(learning_rate, min_rate, name='learning_rate')
 
   return _learning_rate_return_value(eager_decay_rate)

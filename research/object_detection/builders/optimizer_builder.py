@@ -218,7 +218,8 @@ def _create_learning_rate(learning_rate_config, global_step=None):
         config.decay_steps,
         config.decay_factor,
         config.osc_amplitude,
-        config.osc_period)
+        config.osc_period,
+        config.min_rate)
 
   if learning_rate is None:
     raise ValueError('Learning_rate %s not supported.' % learning_rate_type)

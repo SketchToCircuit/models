@@ -109,4 +109,5 @@ message ExponentialOscillatingLearningRate {
   optional float decay_factor = 6 [default = 0.95];
   optional float osc_amplitude = 7 [default = 0.01];
   optional uint32 osc_period = 8 [default = 10000];
+  optional float min_rate = 9 [default = 0.001];
 }
