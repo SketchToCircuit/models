@@ -1148,7 +1148,7 @@ def eval_continuously(
     summary_writer = tf.compat.v2.summary.create_file_writer(
         os.path.join(model_dir, 'eval', eval_input_config.name))
     with summary_writer.as_default():
-      eager_eval_loop(
+      eval_metrics = eager_eval_loop(
           detection_model,
           configs,
           eval_input,
@@ -1156,3 +1156,45 @@ def eval_continuously(
           postprocess_on_cpu=postprocess_on_cpu,
           global_step=global_step,
           )
+      save_best_eval_chkpt(eval_metrics, latest_checkpoint, checkpoint_dir)
+
+def save_best_eval_chkpt(eval_metrics, ckpt_path, checkpoint_dir):
+  NUM_CKPS = 5
+  import json
+  import shutil
+
+  folder = os.path.join(checkpoint_dir, 'best_ckps')
+
+  loss = eval_metrics['Loss/localization_loss'].numpy() + eval_metrics['Loss/classification_loss'].numpy()
+
+  if not os.path.exists(folder):
+    os.makedirs(folder)
+
+  json_arr = []
+  if not os.path.exists(os.path.join(folder, 'losses.json')):
+    with open(os.path.join(folder, 'losses.json'), 'w') as file:
+      json.dump([], file)
+  else:
+    with open(os.path.join(folder, 'losses.json'), 'r') as file:
+      json_arr = json.load(file)
+
+  with open(os.path.join(folder, 'losses.json'), 'w') as file:
+    if len(json_arr) >= NUM_CKPS:
+      for ckpt in json_arr:
+        if loss < ckpt['loss']:
+          break
+      else:
+        return
+      
+    dst_path = os.path.join(folder, os.path.split(ckpt_path)[1])
+    shutil.copyfile(ckpt_path + '.index', dst_path + '.index')
+    shutil.copyfile(ckpt_path + '.data-00000-of-00001', dst_path + '.data-00000-of-00001')
+
+    json_arr.append({'loss': float(loss), 'path': dst_path})
+    json_arr.sort(key = lambda x : x['loss'])
+
+    for ckpt in json_arr[3:]:
+      os.remove(ckpt['path'] + '.index')
+      os.remove(ckpt['path'] + '.data-00000-of-00001')
+
+    json.dump(json_arr[:3], file)
