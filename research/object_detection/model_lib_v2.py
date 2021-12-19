@@ -1160,8 +1160,10 @@ def eval_continuously(
 
 def save_best_eval_chkpt(eval_metrics, ckpt_path, checkpoint_dir):
   NUM_CKPS = 5
+
   import json
   import shutil
+  import time
 
   folder = os.path.join(checkpoint_dir, 'best_ckps')
 
@@ -1196,5 +1198,17 @@ def save_best_eval_chkpt(eval_metrics, ckpt_path, checkpoint_dir):
     for ckpt in json_arr[3:]:
       os.remove(ckpt['path'] + '.index')
       os.remove(ckpt['path'] + '.data-00000-of-00001')
+
+    with open(os.path.join(folder, 'checkpoint'), 'w') as ckp_file:
+      p = os.path.split(json_arr[0]['path'])[1]
+      ckp_file.write(f'model_checkpoint_path: "{p}"\n')
+      
+      for ckpt in json_arr[:3][::-1]:
+        p = os.path.split(ckpt['path'])[1]
+        ckp_file.write(f'all_model_checkpoint_paths: "{p}"\n')
+      
+      for i in range(3):
+        # just set the timestamps for the models in 10s intervals
+        ckp_file.write(f'all_model_checkpoint_timestamps: {time.time() + 10 * i}\n')
 
     json.dump(json_arr[:3], file)
