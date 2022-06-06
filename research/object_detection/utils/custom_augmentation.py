@@ -17,7 +17,10 @@ def threshold(img):
     return tf.where(img < 200, 0.0, 255.0)
 
 def contrast_boost(img):
-    return tf.clip_by_value(tf.image.adjust_contrast(img, tf.random.uniform(shape=[], minval=1.5, maxval=3.0)), 0.0, 255.0)
+    # set contrast to a value between 2.0 and 3.0
+    # ensure the values stay in [0; 255]
+    c = tf.random.uniform(shape=[], minval=2.0, maxval=3.0)
+    return tf.clip_by_value(tf.image.adjust_contrast(img, c), 0.0, 255.0)
 
 def dilate(img, size):
     # https://stackoverflow.com/questions/54686895/tensorflow-dilation-behave-differently-than-morphological-dilation
@@ -58,13 +61,17 @@ def erode(img, size):
     return img
 
 def warp_random(img, strength):
-    # https://www.tensorflow.org/addons/tutorials/image_ops#dense_image_warp
+    # add batch dimenstion to image
     img = tf.expand_dims(img, 0)
+    # get image dimension and set last dimension to 2
     img_dims = tf.slice(tf.shape(img), [0], [3])
     flow_shape = tf.concat([img_dims, tf.constant([2])], 0)
-    # flow shape is no a tensor with the values [1, height, width, 2]
-    rand_flow = tf.random.normal(flow_shape, stddev=strength) # standard devaition = strength of effect
+    # flow_shape is now a tensor with the values [1, height, width, 2]
+    # normal distributed flow field
+    rand_flow = tf.random.normal(flow_shape, stddev=strength)
+    # warp image
     img = tfa.image.dense_image_warp(img, rand_flow)
+    # remove batch dimension
     return tf.squeeze(img, 0)
 
 def noise_normal(img, strength):
@@ -91,11 +98,17 @@ def uneven_resize(img, span):
     return img
 
 def resize_to_square(img, boxes, size=640):
+    # calculate scaling factor (longer side gets scaled to size)
     sf = tf.cast(size / tf.reduce_max(tf.shape(img)), tf.float32)
+    # transform box coordinates to absolute values (including scaling)
     boxes = boxes * tf.cast(tf.tile(tf.shape(img)[:2], [2]), tf.float32) * sf
+    # add padding offset (offset = (size - smaller_scaled_image_side) / 2)
     boxes = boxes + tf.tile(tf.maximum(tf.constant([size, size], tf.float32) - tf.cast(tf.shape(img)[:2], tf.float32) * sf, 0) / 2, [2])
+    # transform box ccordinates to relative values
     boxes = tf.cast(boxes / size, tf.float32)
 
+    # resize image centred with padding
+    # padding is always with value 0 -> inverting before and after is necessary for white padding
     img = 255 - tf.image.resize_with_pad(255 - img, size, size, method=tf.image.ResizeMethod.AREA)
     return img, boxes
 
@@ -107,30 +120,30 @@ def augment(image, boxes):
     '''
     image = tf.ensure_shape(image, [None, None, 3])
 
-    # 70% contrast boosting or 30% threshold
+    # 70% resize Picture uneven
     if tf.random.uniform([]) < 0.7:
+        image = uneven_resize(image, span=0.5)
+
+    # resize and pad to square
+    image, boxes = resize_to_square(image, boxes, 640)
+
+    # 50% contrast boosting or 50% threshold
+    if tf.random.uniform([]) < 0.5:
         image = contrast_boost(image)
     else:
         image = threshold(image)
 
-    # 60% dilation or erosion
-    if tf.random.uniform([]) < 0.6:
-        # 90% erosion, 10% dilation
-        if tf.random.uniform([]) < 0.9:
-            image = erode(image, tf.random.uniform(shape=[], minval=1, maxval=6, dtype=tf.int64)) # between 1 and 5 (inclusive) for erosion (thicker)
+    # 40% dilation or erosion
+    if tf.random.uniform([]) < 0.4:
+        # 80% erosion, 20% dilation
+        if tf.random.uniform([]) < 0.8:
+            image = erode(image, tf.random.uniform(shape=[], minval=2, maxval=4, dtype=tf.int64)) # between 2 and 3 (inclusive) for erosion (thicker)
         else:
             image = dilate(image, 2) # kernel size for dilation (smaller) is always 2
 
-    # 30% image warping
-    if tf.random.uniform([]) < 0.3:
-        image = warp_random(image, tf.random.uniform([], minval=0.2, maxval=1.3)) # random strength
-
-    # 50% resize Picture uneven
-    if tf.random.uniform([]) < 0.5:
-        image = uneven_resize(image, span=0.8)
-
-    # resize and pad to square
-    image, boxes = resize_to_square(image, boxes, 640)
+    # 20% image warping
+    if tf.random.uniform([]) < 0.2:
+        image = warp_random(image, tf.random.uniform([], minval=0.0, maxval=0.5)) # random strength
 
     # 50% add  Noise
     if tf.random.uniform([]) < 0.5:
@@ -143,6 +156,7 @@ def augment(image, boxes):
 
     # set all color channels to the same value
     image = tf.repeat(tf.reduce_mean(image, axis=-1, keepdims=True), 3, axis=-1)
+    image = tf.ensure_shape(image, [640, 640, 3])
     return image, boxes
 
 # for eagerly testing the augmentation on *.tfrecord
@@ -189,11 +203,11 @@ def test(path: str, num_samples: int):
             xmax = int(xmax)
             ymax = int(ymax)
 
-            cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (255, 0, 0), thickness=3)
+            cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (255, 0, 0), thickness=1)
 
         cv2.imshow('', img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    test('./ObjectDetection/data/train-2.tfrecord', 5)
+    test('./ObjectDetection/data/train-0.tfrecord', 20)

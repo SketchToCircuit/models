@@ -1167,7 +1167,7 @@ def save_best_eval_chkpt(eval_metrics, ckpt_path, checkpoint_dir):
 
   folder = os.path.join(checkpoint_dir, 'best_ckps')
 
-  loss = eval_metrics['Loss/localization_loss'].numpy() + eval_metrics['Loss/classification_loss'].numpy()
+  loss = eval_metrics['Loss/total_loss'].numpy()
 
   if not os.path.exists(folder):
     os.makedirs(folder)
