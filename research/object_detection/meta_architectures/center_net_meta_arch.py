@@ -92,6 +92,23 @@ class CenterNetFeatureExtractor(tf.keras.Model):
       outputs: a [batch, height, width, channels] float32 tensor
 
     """
+    def erode(img, size):
+        img = tf.cast(tf.expand_dims(img, axis=0), tf.float32)
+        kernel = tf.ensure_shape(tf.expand_dims(tf.zeros(tf.concat([tf.constant(size), tf.constant(size)], 0), dtype=tf.float32), -1), [None, None, 1])
+        img = tf.nn.erosion2d(img, filters=kernel, strides=(1,1,1,1), dilations=(1,1,1,1), padding="SAME", data_format="NHWC")
+        img = tf.cast(tf.squeeze(img, axis=0), tf.uint8)
+        return img
+
+    import tensorflow_addons as tfa
+    img = tf.expand_dims(inputs[0], -1)
+    img = tf.where(img < 127, 0, 255)
+    img = tf.cast(img, tf.uint8)
+
+    dist = tfa.image.euclidean_dist_transform(img)
+
+    dist_inv = tfa.image.euclidean_dist_transform(255 - erode(img, 15))
+
+    inputs = tf.concat([img, dist, dist_inv], -1)
 
     if self._bgr_ordering:
       red, green, blue = tf.unstack(inputs, axis=3)
